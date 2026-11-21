@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cis_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cis_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cis_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/cis_db
+      SECRET_KEY: cis-super-secret-production-grade-key-at-least-32-chars-long-2026
+      APP_ENV: production
+      MCP_SERVER_URL: http://mcp_server:8001
+      OPENCLAW_GATEWAY_URL: http://openclaw_gateway:18789
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+
+  mcp_server:
+    build:
+      context: ./mcp_server
+      dockerfile: Dockerfile
+    container_name: cis_mcp_server
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      MCP_PORT: 8001
+
+  openclaw_gateway:
+    build:
+      context: ./openclaw
+      dockerfile: Dockerfile
+    container_name: cis_openclaw_gateway
+    restart: unless-stopped
+    ports:
+      - "18789:18789"
+    environment:
+      GATEWAY_PORT: 18789
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cis_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:

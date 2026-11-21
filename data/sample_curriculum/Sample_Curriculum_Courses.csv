@@ -1,0 +1,9 @@
+Semester,Course Code,Course Title,Type,Credits,L,T,P,Description
+1,CS101,Programming for Problem Solving using C,THEORY,3.0,3,0,0,Core programming principles in C
+1,CS102,Digital Logic and Computer Organization,THEORY,3.0,3,0,0,"Digital circuits, architecture and memory"
+2,CS201,Data Structures and Algorithms,INTEGRATED,4.0,3,1,2,"Trees, graphs, dynamic programming, sorting"
+2,CS202,Object-Oriented Programming with Java,THEORY,3.0,3,0,0,"OOP, multithreading, collections, streams"
+3,CS301,Database Management Systems,THEORY,3.0,3,0,0,"Relational schemas, SQL, transactions, normalization"
+3,CS302,Operating Systems,THEORY,3.0,3,0,0,"Process scheduling, virtual memory, file systems"
+4,CS401,Computer Networks,THEORY,3.0,3,0,0,"TCP/IP stack, routing, sockets, HTTP"
+4,CS402,Artificial Intelligence & Foundations,THEORY,3.0,3,0,0,"Search, logic, basic machine learning"
