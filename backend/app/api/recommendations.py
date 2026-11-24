@@ -43,8 +43,10 @@ def list_recommendations(
             "gap_id": r.gap.gap_id if r.gap else None,
             "gap_title": r.gap.title if r.gap else None,
             "category": r.category,
+            "recommendation_type": r.category,
             "title": r.title,
             "description": r.description,
+            "proposed_action": r.description,
             "affected_semester": r.affected_semester,
             "affected_course_title": r.course.course_title if r.course else None,
             "rationale": r.rationale,
@@ -54,6 +56,7 @@ def list_recommendations(
             "expected_benefit": r.expected_benefit,
             "priority": r.priority,
             "status": r.status,  # DRAFT, SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED, NEEDS_REVISION
+            "approval_status": r.status,
             "faculty_notes": r.faculty_notes,
             "created_at": r.created_at.isoformat()
         }
@@ -85,8 +88,10 @@ def get_recommendations_or_detail(
                 "gap_id": r.gap.gap_id if r.gap else None,
                 "gap_title": r.gap.title if r.gap else None,
                 "category": r.category,
+                "recommendation_type": r.category,
                 "title": r.title,
                 "description": r.description,
+                "proposed_action": r.description,
                 "affected_semester": r.affected_semester,
                 "affected_course_title": r.course.course_title if r.course else None,
                 "rationale": r.rationale,
@@ -118,8 +123,10 @@ def get_recommendations_or_detail(
                     "gap_id": r.gap.gap_id if r.gap else None,
                     "gap_title": r.gap.title if r.gap else None,
                     "category": r.category,
+                    "recommendation_type": r.category,
                     "title": r.title,
                     "description": r.description,
+                    "proposed_action": r.description,
                     "affected_semester": r.affected_semester,
                     "affected_course_title": r.course.course_title if r.course else None,
                     "rationale": r.rationale,
@@ -140,12 +147,26 @@ def get_recommendations_or_detail(
     return {
         "id": rec.id,
         "recommendation_id": rec.recommendation_id,
+        "curriculum_version_id": rec.curriculum_version_id,
+        "gap_id": rec.gap.gap_id if rec.gap else None,
+        "gap_title": rec.gap.title if rec.gap else None,
+        "category": rec.category,
+        "recommendation_type": rec.category,
         "title": rec.title,
         "description": rec.description,
-        "category": rec.category,
+        "proposed_action": rec.description,
+        "affected_semester": rec.affected_semester,
+        "affected_course_title": rec.course.course_title if rec.course else None,
+        "rationale": rec.rationale,
+        "industry_evidence": rec.industry_evidence,
+        "academic_reference": rec.academic_reference,
+        "estimated_effort": rec.estimated_effort,
+        "expected_benefit": rec.expected_benefit,
         "priority": rec.priority,
         "status": rec.status,
-        "approval_status": rec.status
+        "approval_status": rec.status,
+        "faculty_notes": rec.faculty_notes,
+        "created_at": rec.created_at.isoformat()
     }
 
 
@@ -154,7 +175,7 @@ def edit_recommendation(
     recommendation_id: str,
     payload: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([RoleEnum.ADMIN, RoleEnum.FACULTY]))
+    current_user: User = Depends(require_role([RoleEnum.ADMIN, RoleEnum.FACULTY, RoleEnum.MANAGEMENT]))
 ):
     """Faculty edits recommendation draft content, semester, effort, or notes."""
     rec = db.execute(select(Recommendation).where(Recommendation.id == recommendation_id)).scalar_one_or_none()
@@ -189,9 +210,9 @@ def approve_recommendation(
     recommendation_id: str,
     payload: dict = {},
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([RoleEnum.ADMIN, RoleEnum.FACULTY]))
+    current_user: User = Depends(require_role([RoleEnum.ADMIN, RoleEnum.FACULTY, RoleEnum.MANAGEMENT]))
 ):
-    """Faculty formally approves a curriculum recommendation."""
+    """Faculty or Board of Studies formally approves a curriculum recommendation."""
     rec = db.execute(select(Recommendation).where(Recommendation.id == recommendation_id)).scalar_one_or_none()
     if not rec:
         rec = db.execute(select(Recommendation).where(Recommendation.recommendation_id == recommendation_id)).scalar_one_or_none()
@@ -233,9 +254,9 @@ def reject_recommendation(
     recommendation_id: str,
     payload: dict = {},
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([RoleEnum.ADMIN, RoleEnum.FACULTY]))
+    current_user: User = Depends(require_role([RoleEnum.ADMIN, RoleEnum.FACULTY, RoleEnum.MANAGEMENT]))
 ):
-    """Faculty rejects a curriculum recommendation with justification."""
+    """Faculty or Board of Studies rejects a curriculum recommendation with justification."""
     rec = db.execute(select(Recommendation).where(Recommendation.id == recommendation_id)).scalar_one_or_none()
     if not rec:
         rec = db.execute(select(Recommendation).where(Recommendation.recommendation_id == recommendation_id)).scalar_one_or_none()
@@ -269,3 +290,46 @@ def reject_recommendation(
     )
 
     return {"message": f"Recommendation {rec.recommendation_id} rejected.", "status": rec.status}
+
+
+@router.post("/{recommendation_id}/revise")
+def revise_recommendation(
+    recommendation_id: str,
+    payload: dict = {},
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([RoleEnum.ADMIN, RoleEnum.FACULTY, RoleEnum.MANAGEMENT]))
+):
+    """Faculty or Board of Studies requests revision on a curriculum recommendation."""
+    rec = db.execute(select(Recommendation).where(Recommendation.id == recommendation_id)).scalar_one_or_none()
+    if not rec:
+        rec = db.execute(select(Recommendation).where(Recommendation.recommendation_id == recommendation_id)).scalar_one_or_none()
+    if not rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recommendation not found")
+
+    old_status = rec.status
+    rec.status = "NEEDS_REVISION"
+    if payload.get("comments"):
+        rec.faculty_notes = payload.get("comments")
+
+    record = ApprovalRecord(
+        recommendation_id=rec.id,
+        curriculum_version_id=rec.curriculum_version_id,
+        reviewer_id=current_user.id,
+        action="NEEDS_REVISION",
+        comments=payload.get("comments", "Revision requested by Faculty Reviewer."),
+        previous_state={"status": old_status},
+        new_state={"status": "NEEDS_REVISION"}
+    )
+    db.add(record)
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        action="RECOMMENDATION_REVISION_REQUESTED",
+        resource_type="RECOMMENDATION",
+        resource_id=rec.id,
+        user_id=current_user.id,
+        details={"reason": payload.get("comments")}
+    )
+
+    return {"message": f"Recommendation {rec.recommendation_id} marked for revision.", "status": rec.status}
