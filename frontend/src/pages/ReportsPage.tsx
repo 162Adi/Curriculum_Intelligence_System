@@ -1,22 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import {
   FileDown,
-  FileSpreadsheet,
   FileText,
-  Presentation,
   CheckCircle2,
   AlertCircle,
   Download,
   Loader2,
-  ExternalLink,
   ShieldCheck,
   Award,
+  Sparkles,
 } from 'lucide-react';
 import { useCurriculumStore } from '../stores/curriculumStore';
+import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
 
 export const ReportsPage: React.FC = () => {
   const { currentCurriculum, selectedProgrammeId, programmes, fetchInitialData } = useCurriculumStore();
+  const { user } = useAuthStore();
   const [summary, setSummary] = useState<any>(null);
   const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -30,35 +30,35 @@ export const ReportsPage: React.FC = () => {
     }
   }, [currentCurriculum, fetchInitialData]);
 
-  const handleDownload = async (format: 'pdf' | 'xlsx' | 'pptx') => {
+  const handleDownload = async () => {
     const targetId = currentCurriculum?.id || 'active';
-    setDownloadingFormat(format);
+    setDownloadingFormat('pdf');
     setStatusMessage(null);
 
     try {
-      const filename = await api.downloadReportFile(targetId, format);
+      const filename = await api.downloadReportFile(targetId, 'pdf');
       setStatusMessage({
         type: 'success',
-        text: `Report compiled successfully: ${filename}`
+        text: `Official PDF Dossier compiled successfully: ${filename}`,
       });
     } catch (err: any) {
       console.warn('Direct stream download notice, attempting browser fallback:', err);
       try {
-        const fallbackUrl = api.getReportDownloadUrl(targetId, format);
+        const fallbackUrl = api.getReportDownloadUrl(targetId, 'pdf');
         const a = document.createElement('a');
         a.href = fallbackUrl;
-        a.download = `CIS_Report_${format}.${format}`;
+        a.download = `CIS_Report_${currentCurriculum?.version_tag || '2024-R1'}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setStatusMessage({
           type: 'success',
-          text: `Download triggered for ${format.toUpperCase()} report.`
+          text: 'Download triggered for official PDF report.',
         });
       } catch (fallbackErr: any) {
         setStatusMessage({
           type: 'error',
-          text: err.message || `Failed to download ${format.toUpperCase()} report.`
+          text: err.message || 'Failed to download PDF report.',
         });
       }
     } finally {
@@ -75,7 +75,7 @@ export const ReportsPage: React.FC = () => {
           <span>Curriculum Reports & Accreditation Exports</span>
         </h1>
         <p className="text-xs text-slate-400 mt-1">
-          Generate comprehensive audit-ready documentation in PDF, Excel, and PowerPoint presentations.
+          Generate comprehensive audit-ready accreditation documentation in official PDF format with running headers, executive summary, ACM alignment tables, and faculty signatures.
         </p>
       </div>
 
@@ -97,108 +97,67 @@ export const ReportsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Export Options Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* PDF Card */}
-        <div className="bg-slate-900/80 border border-slate-800 hover:border-blue-500/40 rounded-xl p-5 flex flex-col justify-between transition-colors">
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-3">
-              <FileText className="w-5 h-5" />
+      {/* Primary PDF Export Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/50 border border-slate-800 hover:border-blue-500/40 rounded-2xl p-6 transition-all shadow-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0 shadow-lg shadow-rose-500/10">
+              <FileText className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-bold text-white">Accreditation PDF Dossier</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Official PDF report with numbered canvas, running headers, executive summary, ACM alignment tables, and faculty signatures.
-            </p>
-            <div className="mt-3 text-[11px] text-slate-400">
-              Format: <span className="font-mono text-slate-300">PDF (ReportLab Platypus)</span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => handleDownload('pdf')}
-            disabled={downloadingFormat !== null}
-            className="mt-5 w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 disabled:opacity-50 cursor-pointer"
-          >
-            {downloadingFormat === 'pdf' ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Compiling PDF Report...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4" />
-                <span>Download PDF Report</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Excel Card */}
-        <div className="bg-slate-900/80 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-5 flex flex-col justify-between transition-colors">
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-3">
-              <FileSpreadsheet className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-white">Curriculum Excel Matrix</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Multi-tab spreadsheet with full course taxonomy, deterministic gap scores, market vacancy data, and recommendation action plans.
-            </p>
-            <div className="mt-3 text-[11px] text-slate-400">
-              Format: <span className="font-mono text-slate-300">XLSX (openpyxl Multi-Tab)</span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 uppercase tracking-wider font-mono">
+                  Official Dossier
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
+                  ReportLab Platypus Engine
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                  Accreditation Ready
+                </span>
+              </div>
+              <h2 className="text-lg font-bold text-white mt-1.5">
+                Accreditation & Curriculum Intelligence PDF Dossier
+              </h2>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                Comprehensive academic report featuring numbered running canvas, institutional header, curriculum taxonomy, gap analysis matrices, and color-highlighted faculty recommendations with Board of Studies approval statuses and reviewer notes.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 mt-3 text-[11px] text-slate-400">
+                <div>
+                  Curriculum: <span className="font-semibold text-white">{currentCurriculum?.version_tag || '2024-R1'}</span>
+                </div>
+                <div>
+                  Academic Year: <span className="font-semibold text-white">{currentCurriculum?.academic_year || '2024-2025'}</span>
+                </div>
+                <div>
+                  Programme: <span className="font-semibold text-white">{activeProgramme?.name || 'Computer Science & Engineering'}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <button
-            onClick={() => handleDownload('xlsx')}
-            disabled={downloadingFormat !== null}
-            className="mt-5 w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-50 cursor-pointer"
-          >
-            {downloadingFormat === 'xlsx' ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Compiling Excel Matrix...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4" />
-                <span>Download Excel Matrix</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* PowerPoint Card */}
-        <div className="bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 rounded-xl p-5 flex flex-col justify-between transition-colors">
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3">
-              <Presentation className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-white">Board of Studies Slide Deck</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Executive presentation slides for Academic Council and Dean review summarizing key findings, gaps, and approved revisions.
+          <div className="flex flex-col sm:flex-row md:flex-col items-stretch md:items-end justify-center gap-2 shrink-0 min-w-[200px]">
+            <button
+              onClick={handleDownload}
+              disabled={downloadingFormat !== null}
+              className="py-3 px-6 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 hover:shadow-rose-600/50 disabled:opacity-50 cursor-pointer"
+            >
+              {downloadingFormat === 'pdf' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Compiling PDF Report...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Download PDF Dossier</span>
+                </>
+              )}
+            </button>
+            <p className="text-[10px] text-slate-500 text-center md:text-right">
+              Generated live from verified database records
             </p>
-            <div className="mt-3 text-[11px] text-slate-400">
-              Format: <span className="font-mono text-slate-300">PPTX (python-pptx Presentation)</span>
-            </div>
           </div>
-
-          <button
-            onClick={() => handleDownload('pptx')}
-            disabled={downloadingFormat !== null}
-            className="mt-5 w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20 disabled:opacity-50 cursor-pointer"
-          >
-            {downloadingFormat === 'pptx' ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Compiling Slide Deck...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4" />
-                <span>Download Slide Deck</span>
-              </>
-            )}
-          </button>
         </div>
       </div>
 
@@ -211,7 +170,7 @@ export const ReportsPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 text-xs text-emerald-400">
             <ShieldCheck className="w-4 h-4" />
-            <span>Accreditation Ready</span>
+            <span>Accreditation Ready (NBA / ABET / OBE)</span>
           </div>
         </div>
 
@@ -219,25 +178,27 @@ export const ReportsPage: React.FC = () => {
           <div className="bg-slate-950/60 p-4 rounded-lg border border-slate-800 space-y-2">
             <h4 className="font-bold text-blue-400 uppercase tracking-wider text-[11px]">Executive Summary</h4>
             <p className="leading-relaxed">
-              The Department of Computer Science & Engineering curriculum (Academic Year 2024-2025, Version 2024-R1)
-              was subjected to comprehensive agentic evaluation. The multi-agent swarm identified 19 distinct gaps across
-              industry skill demand, ACM CS2023 guidelines, and course prerequisite chains. Five key recommendations have
-              been formulated to modernize AI/ML, DevOps, and Distributed Systems coverage.
+              The Department of Computer Science & Engineering curriculum (Academic Year {currentCurriculum?.academic_year || '2024-2025'}, Version {currentCurriculum?.version_tag || '2024-R1'})
+              was subjected to comprehensive agentic evaluation. The multi-agent swarm identified curriculum gaps across
+              industry skill demand, ACM CS2023 guidelines, and course prerequisite chains. Key actionable recommendations have
+              been evaluated by faculty reviewers and queued for Board of Studies final ratification.
             </p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
             <div className="p-3 bg-slate-800/40 rounded-lg border border-slate-800">
               <div className="text-[10px] text-slate-400 uppercase">Courses Evaluated</div>
-              <div className="text-lg font-bold text-white mt-1">8 Core Syllabi</div>
+              <div className="text-lg font-bold text-white mt-1">
+                {currentCurriculum?.total_courses || 8} Syllabi
+              </div>
             </div>
             <div className="p-3 bg-slate-800/40 rounded-lg border border-slate-800">
               <div className="text-[10px] text-slate-400 uppercase">External Standard</div>
-              <div className="text-lg font-bold text-indigo-400 mt-1">ACM CS2023</div>
+              <div className="text-lg font-bold text-indigo-400 mt-1">ACM CS2023 / IEEE</div>
             </div>
             <div className="p-3 bg-slate-800/40 rounded-lg border border-slate-800">
               <div className="text-[10px] text-slate-400 uppercase">Market Sample</div>
-              <div className="text-lg font-bold text-emerald-400 mt-1">1,420 Vacancies</div>
+              <div className="text-lg font-bold text-emerald-400 mt-1">1,420 Postings</div>
             </div>
             <div className="p-3 bg-slate-800/40 rounded-lg border border-slate-800">
               <div className="text-[10px] text-slate-400 uppercase">Safety Rating</div>

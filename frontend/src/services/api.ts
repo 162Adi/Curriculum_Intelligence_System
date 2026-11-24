@@ -8,7 +8,8 @@ import {
   Gap,
   Recommendation,
   ApprovalRecord,
-  StudioCapability
+  StudioCapability,
+  AdminFileItem
 } from '../types';
 
 const API_BASE = '/api';
@@ -357,6 +358,44 @@ class ApiClient {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(params),
+    });
+    return this.handleResponse(res);
+  }
+
+  // --- Admin & Storage Management ---
+  async getAdminFiles(): Promise<AdminFileItem[]> {
+    const res = await fetch(`${API_BASE}/admin/files`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse<AdminFileItem[]>(res);
+  }
+
+  async deleteAdminFile(filePath: string): Promise<{ message: string; file_name: string; file_path: string }> {
+    const res = await fetch(`${API_BASE}/admin/files?file_path=${encodeURIComponent(filePath)}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(res);
+  }
+
+  async purgeAdminFiles(target: 'uploads' | 'reports' | 'all'): Promise<{
+    message: string;
+    target: string;
+    files_removed: number;
+    bytes_freed: number;
+    freed_formatted: string;
+  }> {
+    const res = await fetch(`${API_BASE}/admin/files/purge?target=${target}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(res);
+  }
+
+  async deleteCurriculum(curriculumId: string): Promise<{ message: string; curriculum_id: string }> {
+    const res = await fetch(`${API_BASE}/admin/curriculum/${curriculumId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
     });
     return this.handleResponse(res);
   }

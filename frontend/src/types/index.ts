@@ -68,6 +68,8 @@ export interface Curriculum {
   version_tag?: string;
   status: 'DRAFT' | 'INGESTED' | 'STRUCTURE_CONFIRMED' | 'ANALYSIS_RUNNING' | 'ANALYZED' | 'APPROVED' | 'ARCHIVED' | string;
   is_active: boolean;
+  file_name?: string;
+  file_path?: string;
   total_courses?: number;
   total_credits?: number;
   courses?: Course[];
@@ -146,4 +148,19 @@ export interface StudioCapability {
   summary: string;
   cis_integration: string;
   architecture_diagram?: string;
+}
+
+export interface AdminFileItem {
+  id: string;
+  file_name: string;
+  file_path: string;
+  category: 'UPLOAD' | 'GENERATED_REPORT';
+  category_label: string;
+  size_bytes: number;
+  size_formatted: string;
+  created_at: string;
+  stored_in_db: boolean;
+  associated_title?: string;
+  curriculum_version_id?: string;
+  report_id?: string;
 }

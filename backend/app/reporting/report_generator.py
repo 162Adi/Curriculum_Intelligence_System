@@ -149,9 +149,50 @@ class ReportGeneratorService:
             "Body_Custom",
             parent=styles["Normal"],
             fontName="Helvetica",
-            fontSize=9,
-            leading=13,
+            fontSize=8,
+            leading=11,
             textColor=colors.HexColor("#334155")
+        )
+        body_center_style = ParagraphStyle(
+            "Body_Center",
+            parent=body_style,
+            alignment=1
+        )
+        status_approved_style = ParagraphStyle(
+            "StatusApproved",
+            parent=body_style,
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            leading=10,
+            alignment=1,
+            textColor=colors.HexColor("#166534")
+        )
+        status_rejected_style = ParagraphStyle(
+            "StatusRejected",
+            parent=body_style,
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            leading=10,
+            alignment=1,
+            textColor=colors.HexColor("#991b1b")
+        )
+        status_revision_style = ParagraphStyle(
+            "StatusRevision",
+            parent=body_style,
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            leading=10,
+            alignment=1,
+            textColor=colors.HexColor("#92400e")
+        )
+        status_draft_style = ParagraphStyle(
+            "StatusDraft",
+            parent=body_style,
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            leading=10,
+            alignment=1,
+            textColor=colors.HexColor("#475569")
         )
 
         story = []
@@ -219,47 +260,134 @@ class ReportGeneratorService:
         story.append(gap_table)
         story.append(Spacer(1, 14))
 
-        # Section 3: Recommendations & Approvals Table
+        # Section 3: Recommendations & Approvals Table with Visual Highlights
         story.append(Paragraph("3. Recommendations & Faculty Endorsement Status", h1_style))
-        rec_rows = [["Rec ID", "Proposed Recommendation", "Category", "Sem", "Effort", "Status"]]
-        for r in recs:
-            rec_rows.append([
-                r.recommendation_id,
-                Paragraph(r.title, body_style),
-                r.category.replace("_", " "),
-                str(r.affected_semester or "-"),
-                r.estimated_effort,
-                r.status
-            ])
-        rec_table = Table(rec_rows, colWidths=[50, 200, 100, 35, 45, 55])
-        rec_table.setStyle(TableStyle([
+        
+        # Summary KPI Banner for Recommendations
+        approved_cnt = sum(1 for r in recs if (r.status or "").upper() == "APPROVED")
+        rejected_cnt = sum(1 for r in recs if (r.status or "").upper() == "REJECTED")
+        revision_cnt = sum(1 for r in recs if (r.status or "").upper() in ["NEEDS_REVISION", "REVISE"])
+        pending_cnt = sum(1 for r in recs if (r.status or "").upper() not in ["APPROVED", "REJECTED", "NEEDS_REVISION", "REVISE"])
+
+        summary_rows = [
+            [
+                Paragraph(f"<b>Total Evaluated</b><br/>{len(recs)} Action Plans", body_center_style),
+                Paragraph(f"<font color='#166534'><b>✓ Approved</b><br/>{approved_cnt} Adopted</font>", body_center_style),
+                Paragraph(f"<font color='#92400e'><b>⚠ Needs Revision</b><br/>{revision_cnt} Iterating</font>", body_center_style),
+                Paragraph(f"<font color='#991b1b'><b>✗ Rejected</b><br/>{rejected_cnt} Declined</font>", body_center_style),
+                Paragraph(f"<font color='#475569'><b>• Pending Review</b><br/>{pending_cnt} In Queue</font>", body_center_style),
+            ]
+        ]
+        summary_table = Table(summary_rows, colWidths=[100, 100, 100, 100, 100])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(summary_table)
+        story.append(Spacer(1, 10))
+
+        rec_rows = [["Rec ID", "Proposed Recommendation & Faculty Notes", "Action Type", "Sem", "Effort", "Decision Status"]]
+        table_style_commands = [
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e3a8a')),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 9),
+            ('FONTSIZE', (0,0), (-1,0), 8),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('TOPPADDING', (0,0), (-1,-1), 5),
             ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-        ]))
+        ]
+
+        for idx, r in enumerate(recs, start=1):
+            st = (r.status or "DRAFT").upper()
+            
+            # Format recommendation content with title, action and reviewer comments
+            content_parts = [f"<b>{r.title}</b>"]
+            if r.description:
+                content_parts.append(f"<font color='#475569'>{r.description}</font>")
+            
+            if r.faculty_notes:
+                if st == "APPROVED":
+                    content_parts.append(f"<font color='#166534'><b>Reviewer Endorsement:</b> {r.faculty_notes}</font>")
+                elif st == "REJECTED":
+                    content_parts.append(f"<font color='#991b1b'><b>Rejection Justification:</b> {r.faculty_notes}</font>")
+                elif st in ["NEEDS_REVISION", "REVISE"]:
+                    content_parts.append(f"<font color='#92400e'><b>Revision Instructions:</b> {r.faculty_notes}</font>")
+                else:
+                    content_parts.append(f"<font color='#334155'><b>Faculty Feedback:</b> {r.faculty_notes}</font>")
+            
+            content_p = Paragraph("<br/>".join(content_parts), body_style)
+
+            # High-visibility status badge with colored background per decision
+            if st == "APPROVED":
+                status_p = Paragraph("<font color='#166534'><b>✓ APPROVED</b></font>", status_approved_style)
+                cell_bg = colors.HexColor('#dcfce7')
+            elif st == "REJECTED":
+                status_p = Paragraph("<font color='#991b1b'><b>✗ REJECTED</b></font>", status_rejected_style)
+                cell_bg = colors.HexColor('#fee2e2')
+            elif st in ["NEEDS_REVISION", "REVISE"]:
+                status_p = Paragraph("<font color='#92400e'><b>⚠ REVISION</b></font>", status_revision_style)
+                cell_bg = colors.HexColor('#fef3c7')
+            else:
+                status_p = Paragraph("<font color='#475569'><b>• PENDING</b></font>", status_draft_style)
+                cell_bg = colors.HexColor('#f1f5f9')
+
+            rec_rows.append([
+                r.recommendation_id,
+                content_p,
+                r.category.replace("_", " "),
+                str(r.affected_semester or "-"),
+                r.estimated_effort or "Medium",
+                status_p
+            ])
+
+            # Apply cell highlight on the decision column
+            table_style_commands.append(('BACKGROUND', (5, idx), (5, idx), cell_bg))
+
+        rec_table = Table(rec_rows, colWidths=[45, 215, 80, 30, 45, 85])
+        rec_table.setStyle(TableStyle(table_style_commands))
         story.append(rec_table)
         story.append(Spacer(1, 14))
 
-        # Section 4: Faculty Sign-off Block
+        # Section 4: Faculty Committee Sign-off & Governance
         story.append(Paragraph("4. Faculty Committee Sign-off & Governance", h1_style))
+        
+        # Check summary_data from BoS signoff if available
+        summary_data = getattr(report, "summary_data", None) if report else None
+        if not isinstance(summary_data, dict):
+            summary_data = {}
+
+        is_curriculum_approved = curr.status == "APPROVED" if curr else False
+        endorsement_status = (
+            "FORMALLY APPROVED & SEALED BY BOARD OF STUDIES"
+            if is_curriculum_approved
+            else "PROVISIONAL CURRICULUM — FACULTY REVIEW IN PROGRESS"
+        )
+        reviewer_name = (
+            summary_data.get("approved_by")
+            or (report.generated_by.full_name if (report and getattr(report, "generated_by", None)) else "Dr. A. Sharma (HOD CSE)")
+        )
+        bos_minutes = summary_data.get("faculty_comments") or "Ratified by academic department revision council."
+
         sign_data = [
-            ["Committee Reviewer:", report.generated_by.full_name if (report and getattr(report, "generated_by", None)) else "Dr. A. Sharma (HOD CSE)"],
-            ["Endorsement Status:", "FORMALLY APPROVED & SIGNED OFF"],
+            ["Committee Reviewer / Dean:", reviewer_name],
+            ["Board Endorsement Status:", endorsement_status],
+            ["Board of Studies Resolution:", bos_minutes],
             ["Revision Timestamp:", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")],
             ["Accreditation Alignment:", "NBA Tier-1, ABET Computing Criteria, Outcome-Based Education (OBE)"]
         ]
-        sign_table = Table(sign_data, colWidths=[150, 330])
+        sign_table = Table(sign_data, colWidths=[150, 350])
         sign_table.setStyle(TableStyle([
             ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
-            ('FONTSIZE', (0,0), (-1,-1), 9),
+            ('FONTSIZE', (0,0), (-1,-1), 8),
             ('TEXTCOLOR', (0,0), (0,-1), colors.HexColor('#475569')),
             ('TEXTCOLOR', (1,0), (1,-1), colors.HexColor('#0f172a')),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
         ]))
         story.append(sign_table)
 

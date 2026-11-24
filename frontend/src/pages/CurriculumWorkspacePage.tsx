@@ -9,8 +9,11 @@ import {
   ArrowRight,
   BookOpen,
   AlertCircle,
+  Database,
+  HardDrive,
 } from 'lucide-react';
 import { useCurriculumStore } from '../stores/curriculumStore';
+import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
 import { Course, Unit } from '../types';
 
@@ -25,6 +28,7 @@ export const CurriculumWorkspacePage: React.FC = () => {
     selectProgramme,
     fetchInitialData,
   } = useCurriculumStore();
+  const { user } = useAuthStore();
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -118,6 +122,41 @@ export const CurriculumWorkspacePage: React.FC = () => {
       setNotification({ type: 'success', message: res.message });
     } catch (err: any) {
       setNotification({ type: 'error', message: err.message || 'Confirmation failed' });
+    }
+  };
+
+  const handleEraseUploadedFile = async () => {
+    if (!currentCurriculum) return;
+    const docName = currentCurriculum.file_name || 'syllabus document';
+    if (!window.confirm(`Erase the raw uploaded file "${docName}" from disk?\n\nAll ${courses.length} courses, units, and outcomes in the SQLite database will remain 100% safe.`)) {
+      return;
+    }
+    try {
+      const files = await api.getAdminFiles();
+      const match = files.find(f => f.curriculum_version_id === currentCurriculum.id || f.file_name === currentCurriculum.file_name);
+      if (match) {
+        const res = await api.deleteAdminFile(match.file_path);
+        setNotification({ type: 'success', message: res.message });
+      } else {
+        setNotification({ type: 'success', message: 'Raw document is already pruned from disk. Extracted courses are safely stored in DB.' });
+      }
+    } catch (err: any) {
+      setNotification({ type: 'error', message: err.message || 'Action failed' });
+    }
+  };
+
+  const handleDeleteCurriculum = async () => {
+    if (!currentCurriculum) return;
+    const vTag = currentCurriculum.version_tag || currentCurriculum.version || '1.0';
+    if (!window.confirm(`Are you sure you want to completely delete curriculum version "${vTag}" and all its extracted courses from the database?`)) {
+      return;
+    }
+    try {
+      const res = await api.deleteCurriculum(currentCurriculum.id);
+      setNotification({ type: 'success', message: res.message });
+      await fetchInitialData();
+    } catch (err: any) {
+      setNotification({ type: 'error', message: err.message || 'Delete failed' });
     }
   };
 
@@ -255,6 +294,61 @@ export const CurriculumWorkspacePage: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {/* Active Ingested Curriculum & Storage Management */}
+      {currentCurriculum && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-white text-xs">
+                  Active Ingested Curriculum: {currentCurriculum.version_tag || currentCurriculum.version || '1.0'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">
+                  ✓ Extracted & Stored in DB
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                  {courses.length} Courses
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                <span>Original File: <span className="font-mono text-slate-300">{currentCurriculum.file_name || 'Uploaded Document'}</span></span>
+                <span>•</span>
+                <span>Academic Year: <span className="text-slate-300">{currentCurriculum.academic_year}</span></span>
+                <span>•</span>
+                <span>Status: <span className="text-blue-400 font-mono">{currentCurriculum.status}</span></span>
+              </div>
+            </div>
+          </div>
+
+          {user?.role === 'ADMIN' && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleEraseUploadedFile}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Erase raw file from disk; courses in SQLite DB remain safe"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Erase Upload File (Keep DB)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteCurriculum}
+                className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Delete this entire curriculum version and its data"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Version</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Curriculum Courses Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

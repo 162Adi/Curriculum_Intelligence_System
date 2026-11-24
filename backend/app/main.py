@@ -38,6 +38,7 @@ from app.api.reports import router as reports_router
 from app.api.integrations import router as integrations_router
 from app.api.memory import router as memory_router
 from app.api.studio import router as studio_router
+from app.api.admin import router as admin_router
 
 
 @asynccontextmanager
@@ -78,6 +79,7 @@ app.include_router(reports_router, prefix="/api")
 app.include_router(integrations_router, prefix="/api")
 app.include_router(memory_router, prefix="/api")
 app.include_router(studio_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 
 
 @app.get("/")
