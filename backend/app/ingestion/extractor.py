@@ -111,7 +111,7 @@ class CurriculumDocumentExtractor:
         current_course: Optional[Dict[str, Any]] = None
         current_unit: Optional[Dict[str, Any]] = None
 
-        sem_pattern = re.compile(r"(?:SEMESTER|SEM|TERM)\s*[-:]?\s*([0-9IVXLCDM]+)", re.IGNORECASE)
+        sem_pattern = re.compile(r"\b(?:SEMESTER|SEM|TERM)\b\s*[-:]?\s*([0-9IVXLCDM]+)", re.IGNORECASE)
         course_code_pattern = re.compile(r"\b([A-Z]{2,4}\s*[-]?\s*[0-9]{3,4}[A-Z]?)\b")
         credit_pattern = re.compile(r"(?:Credits?|Cr\.?)\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)", re.IGNORECASE)
         ltp_pattern = re.compile(r"\bL\s*[:=]?\s*([0-9]+)\s*,\s*T\s*[:=]?\s*([0-9]+)\s*,\s*P\s*[:=]?\s*([0-9]+)\b", re.IGNORECASE)

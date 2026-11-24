@@ -52,7 +52,11 @@ frontend/build/
 .coverage
 htmlcov/
 
-# Uploads
+# Uploads & Reports
 backend/data/uploads/*
 !backend/data/uploads/.gitkeep
 data/uploads/*
+backend/data/reports/*
+!backend/data/reports/.gitkeep
+data/reports/*
+!data/reports/.gitkeep
